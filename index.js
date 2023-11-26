@@ -32,7 +32,13 @@ async function run() {
         const campCollection = client.db("SaveLifeDB").collection("camps");
         const reviewCollection = client.db("SaveLifeDB").collection("reviews");
 
-        
+
+        app.get('/camp', async(req, res) => {
+            const cursor = campCollection.find({});
+            const camps = await cursor.toArray();
+            res.send(camps);
+        })
+
        
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
