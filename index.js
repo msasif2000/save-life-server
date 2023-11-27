@@ -47,6 +47,14 @@ async function run() {
         
         })
 
+        app.delete('/camp/:id', async(req, res) => {
+            const id = req.params.id;
+            const query = {_id:new ObjectId(id)};
+            const result = await campCollection.deleteOne(query);
+            res.send(result);
+        
+        })
+
         app.get('/joinCamp/:id', async(req, res)=> {
             const id = req.params.id;
             const query = {_id:new ObjectId(id)};
@@ -64,6 +72,12 @@ async function run() {
             const email = req.query.email;
             const query = {email: email};
             const result = await participantCollection.find(query).toArray();
+            res.send(result);
+        })
+        app.delete('/bookings/:id', async(req, res) => {
+            const id = req.params.id;
+            const query = {campId: id};
+            const result = await participantCollection.deleteOne(query);
             res.send(result);
         })
         // Send a ping to confirm a successful connection
