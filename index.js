@@ -40,6 +40,13 @@ async function run() {
             res.send(camps);
         })
 
+        app.post('/camp', async(req, res) => {
+            const camp = req.body;
+            const result = await campCollection.insertOne(camp);
+            res.send(result);
+        
+        })
+
         app.get('/joinCamp/:id', async(req, res)=> {
             const id = req.params.id;
             const query = {_id:new ObjectId(id)};
@@ -53,6 +60,12 @@ async function run() {
             res.json(result);
         })
        
+        app.get('/bookings', async(req, res) => {
+            const email = req.query.email;
+            const query = {email: email};
+            const result = await participantCollection.find(query).toArray();
+            res.send(result);
+        })
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
