@@ -30,6 +30,7 @@ async function run() {
         // Connect the client to the server	(optional starting in v4.7)
         //await client.connect();
         const campCollection = client.db("SaveLifeDB").collection("camps");
+        const participantCollection = client.db("SaveLifeDB").collection("participants");
         const reviewCollection = client.db("SaveLifeDB").collection("reviews");
 
 
@@ -39,6 +40,18 @@ async function run() {
             res.send(camps);
         })
 
+        app.get('/joinCamp/:id', async(req, res)=> {
+            const id = req.params.id;
+            const query = {_id:new ObjectId(id)};
+            const camp = await campCollection.findOne(query);
+            res.send(camp);
+        })
+
+        app.post('/participants', async(req, res) => {
+            const participant = req.body;
+            const result = await participantCollection.insertOne(participant);
+            res.json(result);
+        })
        
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
