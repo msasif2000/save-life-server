@@ -31,61 +31,107 @@ async function run() {
         //await client.connect();
         const campCollection = client.db("SaveLifeDB").collection("camps");
         const participantCollection = client.db("SaveLifeDB").collection("participants");
+        const userCollection = client.db("SaveLifeDB").collection("users");
         const reviewCollection = client.db("SaveLifeDB").collection("reviews");
 
+        //user collection
+        app.post('/users', async(req, res) => {
+            const user = req.body;
+            const query = {email: user.email};
+            const existingUser = await userCollection.findOne(query);
+            if(existingUser){
+                return res.send({message: 'User already exists'});
+            }
+            const result = await userCollection.insertOne(user);
+            res.send(result);
+        })
 
-        app.get('/camp', async(req, res) => {
+        app.get('/users', async(req, res) => {
+            const result = await userCollection.find({}).toArray();
+            res.send(result);
+        })
+
+        app.delete('/users/:id', async(req, res) => {
+            const id = req.params.id;
+            const query = {_id: new ObjectId(id)};
+            const result = await userCollection.deleteOne(query);
+            res.send(result);
+        })
+
+
+
+        //common api
+        app.get('/camp', async (req, res) => {
             const cursor = campCollection.find({});
             const camps = await cursor.toArray();
             res.send(camps);
         })
 
-        app.post('/camp', async(req, res) => {
+
+
+        //admin api
+        app.post('/camp', async (req, res) => {
             const camp = req.body;
             const result = await campCollection.insertOne(camp);
             res.send(result);
-        
+
         })
 
-        app.put('/camp/:id', async(req, res)=> {
+        app.put('/camp/:id', async (req, res) => {
             const id = req.params.id;
-            const query = {_id:new ObjectId(id)};
+            const query = { _id: new ObjectId(id) };
             const updatedCamp = req.body;
-            const result = await campCollection.updateOne(query, {$set: updatedCamp});
+            const result = await campCollection.updateOne(query, { $set: updatedCamp });
             res.send(result);
-        
+
         })
 
-        app.delete('/camp/:id', async(req, res) => {
+        app.delete('/camp/:id', async (req, res) => {
             const id = req.params.id;
-            const query = {_id:new ObjectId(id)};
+            const query = { _id: new ObjectId(id) };
             const result = await campCollection.deleteOne(query);
             res.send(result);
-        
+
         })
 
-        app.get('/joinCamp/:id', async(req, res)=> {
+
+        //make admin
+
+        app.patch('/users/admin/:id', async(req, res) => {
             const id = req.params.id;
-            const query = {_id:new ObjectId(id)};
+            const filter = {_id: new ObjectId(id)};
+           const updatedDoc = {
+            $set: {
+                role: 'admin'
+            }
+           }
+           const result = await userCollection.updateOne(filter, updatedDoc);
+           res.send(result);
+        })
+
+        //user access api
+        app.get('/joinCamp/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
             const camp = await campCollection.findOne(query);
             res.send(camp);
         })
 
-        app.post('/participants', async(req, res) => {
+        app.post('/participants', async (req, res) => {
             const participant = req.body;
             const result = await participantCollection.insertOne(participant);
             res.json(result);
         })
-       
-        app.get('/bookings', async(req, res) => {
+
+        app.get('/bookings', async (req, res) => {
             const email = req.query.email;
-            const query = {email: email};
+            const query = { email: email };
             const result = await participantCollection.find(query).toArray();
             res.send(result);
         })
-        app.delete('/bookings/:id', async(req, res) => {
+        app.delete('/bookings/:id', async (req, res) => {
             const id = req.params.id;
-            const query = {campId: id};
+            const query = { campId: id };
             const result = await participantCollection.deleteOne(query);
             res.send(result);
         })
