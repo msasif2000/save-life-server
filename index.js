@@ -47,6 +47,15 @@ async function run() {
         
         })
 
+        app.put('/camp/:id', async(req, res)=> {
+            const id = req.params.id;
+            const query = {_id:new ObjectId(id)};
+            const updatedCamp = req.body;
+            const result = await campCollection.updateOne(query, {$set: updatedCamp});
+            res.send(result);
+        
+        })
+
         app.delete('/camp/:id', async(req, res) => {
             const id = req.params.id;
             const query = {_id:new ObjectId(id)};
