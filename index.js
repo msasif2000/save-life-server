@@ -31,6 +31,7 @@ async function run() {
         // Connect the client to the server	(optional starting in v4.7)
         //await client.connect();
         const campCollection = client.db("SaveLifeDB").collection("camps");
+        const upcomingCampsCollection = client.db("SaveLifeDB").collection("upcomingCamps");
         const participantCollection = client.db("SaveLifeDB").collection("participants");
         const userCollection = client.db("SaveLifeDB").collection("users");
         const reviewCollection = client.db("SaveLifeDB").collection("reviews");
@@ -48,12 +49,12 @@ async function run() {
         //middlewares
         const verifyToken = (req, res, next) => {
             console.log('verify token', req.headers.authorization);
-            if(!req.headers.authorization){
+            if (!req.headers.authorization) {
                 return res.status(401).send('Unauthorized request');
             }
             const token = req.headers.authorization.split(' ')[1];
             jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
-                if(err){
+                if (err) {
                     return res.status(401).send('Unauthorized request');
                 }
                 req.decoded = decoded;
@@ -62,19 +63,19 @@ async function run() {
             //next();
         }
 
-        app.get('/user/admin/:email',verifyToken,  async(req, res)=> {
+        app.get('/user/admin/:email', verifyToken, async (req, res) => {
             const email = req.params.email;
-            if(email!==req.decoded.email){
+            if (email !== req.decoded.email) {
                 return res.status(403).send('Unauthorized request');
             }
 
             const query = { email: email };
             const user = await userCollection.findOne(query);
-            const admin =false;
-            if(user){
-                admin=user?.role==='admin';
+            let admin = false;
+            if (user) {
+                admin = user?.role === 'admin';
             }
-            res.send({admin});
+            res.send({ admin });
         })
 
         //user collection
@@ -89,7 +90,7 @@ async function run() {
             res.send(result);
         })
 
-        app.get('/users',verifyToken, async (req, res) => {
+        app.get('/users', verifyToken, async (req, res) => {
             //console.log(req.headers);
             const result = await userCollection.find({}).toArray();
             res.send(result);
@@ -121,6 +122,19 @@ async function run() {
 
         })
 
+        app.post('/upcomingCamp', async(req, res) => {
+            const camp = req.body;
+            const result = await upcomingCampsCollection.insertOne(camp);
+            res.send(result);
+        
+        })
+
+        app.get('/upcomingCamp', async(req, res) => {
+            const cursor = await upcomingCampsCollection.find({}).toArray();
+            res.send(cursor);
+        })
+
+        
         app.put('/camp/:id', async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) };
@@ -161,16 +175,34 @@ async function run() {
             res.send(camp);
         })
 
+        app.get('/popularCamp', async(req, res) => {
+            const cursor = await campCollection.find({}).sort({participants: -1}).limit(6).toArray();
+            res.send(cursor);
+        })
+
         app.post('/participants', async (req, res) => {
             const participant = req.body;
             const result = await participantCollection.insertOne(participant);
-            res.json(result);
+            res.send(result);
         })
 
-        app.get('/bookings', async (req, res) => {
+        app.get('/joinedCamp', async (req, res) => {
             const email = req.query.email;
             const query = { email: email };
             const result = await participantCollection.find(query).toArray();
+            res.send(result);
+        })
+
+        app.get('/perCampPart/:id', async(req, res) => {
+            const id = req.params.id;
+            const query = { campId: id };
+            const result = await participantCollection.find(query).toArray();
+            res.send(result);
+        })
+
+        //admin access api
+        app.get('/bookings', async (req, res) => {
+            const result = await participantCollection.find({}).toArray();
             res.send(result);
         })
         app.delete('/bookings/:id', async (req, res) => {
