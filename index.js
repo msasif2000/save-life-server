@@ -5,6 +5,8 @@ const app = express();
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const port = process.env.PORT || 5000;
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+
 
 app.use(cors());
 app.use(express.json());
@@ -63,6 +65,8 @@ async function run() {
             //next();
         }
 
+
+        //admin panel verification
         app.get('/user/admin/:email', verifyToken, async (req, res) => {
             const email = req.params.email;
             if (email !== req.decoded.email) {
@@ -96,7 +100,7 @@ async function run() {
             res.send(result);
         })
 
-        app.delete('/users/:id', async (req, res) => {
+        app.delete('/users/:id', verifyToken, async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) };
             const result = await userCollection.deleteOne(query);
@@ -104,14 +108,14 @@ async function run() {
         })
 
         //update profile api's
-        app.get('/users/:email', async (req, res) => {
+        app.get('/users/:email', verifyToken, async (req, res) => {
             const email = req.params.email;
             const query = { email: email };
             const result = await userCollection.findOne(query);
             res.send(result);
         })
 
-        app.put('/users/:email', async (req, res) => {
+        app.put('/users/:email', verifyToken, async (req, res) => {
             const email = req.params.email;
             const filter = { email: email };
             const updatedDoc = {
@@ -139,14 +143,14 @@ async function run() {
 
 
         //admin api
-        app.post('/camp', async (req, res) => {
+        app.post('/camp', verifyToken, async (req, res) => {
             const camp = req.body;
             const result = await campCollection.insertOne(camp);
             res.send(result);
 
         })
 
-        app.post('/upcomingCamp', async (req, res) => {
+        app.post('/upcomingCamp', verifyToken, async (req, res) => {
             const camp = req.body;
             const result = await upcomingCampsCollection.insertOne(camp);
             res.send(result);
@@ -159,7 +163,7 @@ async function run() {
         })
 
 
-        app.put('/camp/:id', async (req, res) => {
+        app.put('/camp/:id', verifyToken, async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) };
             const updatedCamp = req.body;
@@ -168,7 +172,7 @@ async function run() {
 
         })
 
-        app.delete('/camp/:id', async (req, res) => {
+        app.delete('/camp/:id', verifyToken, async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) };
             const result = await campCollection.deleteOne(query);
@@ -199,12 +203,13 @@ async function run() {
             res.send(camp);
         })
 
+
         app.get('/popularCamp', async (req, res) => {
             const cursor = await campCollection.find({}).sort({ participants: -1 }).limit(6).toArray();
             res.send(cursor);
         })
 
-        app.post('/participants', async (req, res) => {
+        app.post('/participants', verifyToken, async (req, res) => {
             const participant = req.body;
             const result = await participantCollection.insertOne(participant);
             res.send(result);
@@ -217,6 +222,23 @@ async function run() {
             res.send(result);
         })
 
+        app.get('/participants/:id', async(req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
+            const result = await participantCollection.findOne(query);
+            res.send(result);
+        
+        })
+        //delete registered camp by user
+        app.delete('/joinedCamp/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
+            const result = await participantCollection.deleteOne(query);
+            res.send(result);
+        })
+
+
+
         app.get('/perCampPart/:id', async (req, res) => {
             const id = req.params.id;
             const query = { campId: id };
@@ -225,16 +247,38 @@ async function run() {
         })
 
         //admin access api
-        app.get('/bookings', async (req, res) => {
+        app.get('/bookings', verifyToken, async (req, res) => {
             const result = await participantCollection.find({}).toArray();
             res.send(result);
         })
-        app.delete('/bookings/:id', async (req, res) => {
+        app.delete('/bookings/:id', verifyToken, async (req, res) => {
             const id = req.params.id;
             const query = { campId: id };
             const result = await participantCollection.deleteOne(query);
             res.send(result);
         })
+
+
+        //payment
+        app.post('/create-payment-intent', async (req, res) => {
+            const { price } = req.body;
+            const amount = parseInt(price * 100);
+
+            console.log(amount, 'amount inside');
+            
+            const paymentIntent = await stripe.paymentIntents.create({
+                amount: amount,
+                currency: "usd",
+                payment_method_types: ["card"],
+            });
+            res.send({
+                clientSecret: paymentIntent.client_secret,
+            });
+        });
+
+
+
+
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
