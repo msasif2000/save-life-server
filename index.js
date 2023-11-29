@@ -36,6 +36,7 @@ async function run() {
         const upcomingCampsCollection = client.db("SaveLifeDB").collection("upcomingCamps");
         const participantCollection = client.db("SaveLifeDB").collection("participants");
         const userCollection = client.db("SaveLifeDB").collection("users");
+        const paymentCollection = client.db("SaveLifeDB").collection("payments");
         const reviewCollection = client.db("SaveLifeDB").collection("reviews");
 
 
@@ -221,14 +222,22 @@ async function run() {
             const result = await participantCollection.find(query).toArray();
             res.send(result);
         })
+        app.get('/paidCamp', async (req, res) => {
+            const email = req.query.email;
+            const query = { email: email };
+            const result = await paymentCollection.find(query).toArray();
+            res.send(result);
+        })
 
+
+        //for payment
         app.get('/participants/:id', async(req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) };
             const result = await participantCollection.findOne(query);
             res.send(result);
-        
         })
+
         //delete registered camp by user
         app.delete('/joinedCamp/:id', async (req, res) => {
             const id = req.params.id;
@@ -276,6 +285,16 @@ async function run() {
             });
         });
 
+
+        app.post('/payment', async(req, res) => {
+            const payment = req.body;
+            const paymentResult = await paymentCollection.insertOne(payment);
+
+            const query = { _id: new ObjectId(payment.regId) };
+            const deleteResult = await participantCollection.deleteOne(query);
+
+            res.send({paymentResult, deleteResult});
+        })
 
 
 
