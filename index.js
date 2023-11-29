@@ -196,6 +196,19 @@ async function run() {
             res.send(result);
         })
 
+        //make payment accepted
+        app.patch('/payment/:id', async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: new ObjectId(id) };
+            const updatedDoc = {
+                $set: {
+                    status: 'accepted'
+                }
+            }
+            const result = await paymentCollection.updateOne(filter, updatedDoc);
+            res.send(result);
+        })
+
         //user access api
         app.get('/joinCamp/:id', async (req, res) => {
             const id = req.params.id;
@@ -213,7 +226,16 @@ async function run() {
         app.post('/participants', verifyToken, async (req, res) => {
             const participant = req.body;
             const result = await participantCollection.insertOne(participant);
-            res.send(result);
+
+            const query= {_id: new ObjectId(participant.campId)};
+            const updatedDoc = {
+                $inc: {
+                    participants: 1
+                }
+            }
+
+            const updateResult = await campCollection.updateOne(query, updatedDoc);
+           res.send({result, updateResult})
         })
 
         app.get('/joinedCamp', async (req, res) => {
@@ -222,7 +244,7 @@ async function run() {
             const result = await participantCollection.find(query).toArray();
             res.send(result);
         })
-        app.get('/paidCamp', async (req, res) => {
+        app.get('/paidCamp', verifyToken, async (req, res) => {
             const email = req.query.email;
             const query = { email: email };
             const result = await paymentCollection.find(query).toArray();
@@ -251,13 +273,13 @@ async function run() {
         app.get('/perCampPart/:id', async (req, res) => {
             const id = req.params.id;
             const query = { campId: id };
-            const result = await participantCollection.find(query).toArray();
+            const result = await paymentCollection.find(query).toArray();
             res.send(result);
         })
 
         //admin access api
         app.get('/bookings', verifyToken, async (req, res) => {
-            const result = await participantCollection.find({}).toArray();
+            const result = await paymentCollection.find({}).toArray();
             res.send(result);
         })
         app.delete('/bookings/:id', verifyToken, async (req, res) => {
