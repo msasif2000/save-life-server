@@ -103,6 +103,30 @@ async function run() {
             res.send(result);
         })
 
+        //update profile api's
+        app.get('/users/:email', async (req, res) => {
+            const email = req.params.email;
+            const query = { email: email };
+            const result = await userCollection.findOne(query);
+            res.send(result);
+        })
+
+        app.put('/users/:email', async (req, res) => {
+            const email = req.params.email;
+            const filter = { email: email };
+            const updatedDoc = {
+                $set: {
+                    name: req.body.name,
+                    email: req.body.email,
+                    phone: req.body.phone,
+                    address: req.body.address,
+                    dob: req.body.dob,
+                    photoURL: req.body.photoURL
+                }
+            }
+            const result = await userCollection.updateOne(filter, updatedDoc);
+            res.send(result);
+        })
 
 
         //common api
@@ -122,19 +146,19 @@ async function run() {
 
         })
 
-        app.post('/upcomingCamp', async(req, res) => {
+        app.post('/upcomingCamp', async (req, res) => {
             const camp = req.body;
             const result = await upcomingCampsCollection.insertOne(camp);
             res.send(result);
-        
+
         })
 
-        app.get('/upcomingCamp', async(req, res) => {
+        app.get('/upcomingCamp', async (req, res) => {
             const cursor = await upcomingCampsCollection.find({}).toArray();
             res.send(cursor);
         })
 
-        
+
         app.put('/camp/:id', async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) };
@@ -175,8 +199,8 @@ async function run() {
             res.send(camp);
         })
 
-        app.get('/popularCamp', async(req, res) => {
-            const cursor = await campCollection.find({}).sort({participants: -1}).limit(6).toArray();
+        app.get('/popularCamp', async (req, res) => {
+            const cursor = await campCollection.find({}).sort({ participants: -1 }).limit(6).toArray();
             res.send(cursor);
         })
 
@@ -193,7 +217,7 @@ async function run() {
             res.send(result);
         })
 
-        app.get('/perCampPart/:id', async(req, res) => {
+        app.get('/perCampPart/:id', async (req, res) => {
             const id = req.params.id;
             const query = { campId: id };
             const result = await participantCollection.find(query).toArray();
