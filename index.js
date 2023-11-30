@@ -1,9 +1,9 @@
 const express = require('express');
 require('dotenv').config();
-const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
-const app = express();
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+const app = express();
 const port = process.env.PORT || 5000;
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
@@ -11,11 +11,22 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 app.use(cors());
 app.use(express.json());
 
-app.get('/', (req, res) => {
-    res.send('SAVE LIFE MEDICAL CAMP!');
-});
-
-console.log(process.env.DB_User);
+ //middlewares
+ const verifyToken = (req, res, next) => {
+    console.log('verify token', req.headers.authorization);
+    if (!req.headers.authorization) {
+        return res.status(401).send('Unauthorized request');
+    }
+    const token = req.headers.authorization.split(' ')[1];
+    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+        if (err) {
+            return res.status(401).send('Unauthorized request');
+        }
+        req.decoded = decoded;
+        next();
+    })
+    //next();
+}
 
 const uri = `mongodb+srv://${process.env.DB_User}:${process.env.DB_Pass}@cluster0.alzohbu.mongodb.net/?retryWrites=true&w=majority`;
 
@@ -28,18 +39,33 @@ const client = new MongoClient(uri, {
     }
 });
 
-async function run() {
+
+const dbConnect = async () => {
     try {
-        // Connect the client to the server	(optional starting in v4.7)
-        //await client.connect();
+      client.connect()
+      console.log('SAVE LIFE DB Connected Successfully✅')
+    } catch (error) {
+      console.log(error.name, error.message)
+    }
+  }
+  dbConnect()
+
+
+
         const campCollection = client.db("SaveLifeDB").collection("camps");
         const upcomingCampsCollection = client.db("SaveLifeDB").collection("upcomingCamps");
         const participantCollection = client.db("SaveLifeDB").collection("participants");
         const userCollection = client.db("SaveLifeDB").collection("users");
         const paymentCollection = client.db("SaveLifeDB").collection("payments");
         const reviewCollection = client.db("SaveLifeDB").collection("reviews");
+        const doctorsCollection = client.db("SaveLifeDB").collection("doctors");
 
 
+        app.get('/', (req, res) => {
+            res.send('SAVE LIFE MEDICAL CAMP!');
+        });
+
+        
         //jwt api
         app.post('/jwt', async (req, res) => {
             const user = req.body;
@@ -49,22 +75,7 @@ async function run() {
             res.send({ token });
         })
 
-        //middlewares
-        const verifyToken = (req, res, next) => {
-            console.log('verify token', req.headers.authorization);
-            if (!req.headers.authorization) {
-                return res.status(401).send('Unauthorized request');
-            }
-            const token = req.headers.authorization.split(' ')[1];
-            jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
-                if (err) {
-                    return res.status(401).send('Unauthorized request');
-                }
-                req.decoded = decoded;
-                next();
-            })
-            //next();
-        }
+       
 
 
         //admin panel verification
@@ -108,6 +119,11 @@ async function run() {
             res.send(result);
         })
 
+        app.get('/doctors', async(req, res)=> {
+            const result = await doctorsCollection.find({}).toArray();
+            res.send(result);
+        
+        })
         //update profile api's
         app.get('/users/:email', verifyToken, async (req, res) => {
             const email = req.params.email;
@@ -116,9 +132,9 @@ async function run() {
             res.send(result);
         })
 
-        app.put('/users/:email', verifyToken, async (req, res) => {
-            const email = req.params.email;
-            const filter = { email: email };
+        app.patch('/users/:id', verifyToken, async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: new ObjectId(id) };
             const updatedDoc = {
                 $set: {
                     name: req.body.name,
@@ -188,7 +204,12 @@ async function run() {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) };
             const result = await campCollection.deleteOne(query);
-            res.send(result);
+
+
+            const query2 = { campId: id };
+            const result2 = await participantCollection.deleteMany(query2);
+            const result3 = await paymentCollection.deleteMany(query2);
+            res.send({ result, result2, result3 });
 
         })
 
@@ -234,6 +255,18 @@ async function run() {
             res.send(result);
 
         })
+        app.get('/reviews', async (req, res) => {
+            const cursor = await reviewCollection.find({}).toArray();
+            res.send(cursor);
+        })
+
+        app.get('/reviews/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { campId: id };
+            const result = await reviewCollection.find(query).toArray();
+            res.send(result);
+        })
+
         app.get('/popularCamp', async (req, res) => {
             const cursor = await campCollection.find({}).sort({ participants: -1 }).limit(6).toArray();
             res.send(cursor);
@@ -253,6 +286,18 @@ async function run() {
             const updateResult = await campCollection.updateOne(query, updatedDoc);
             res.send({ result, updateResult })
         })
+        app.patch('/participantsNumber/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
+            const updatedDoc = {
+                $inc: {
+                    participants: -1
+                }
+            }
+
+            const updateResult = await campCollection.updateOne(query, updatedDoc);
+            res.send(updateResult)
+        })
 
         app.get('/joinedCamp', async (req, res) => {
             const email = req.query.email;
@@ -260,14 +305,14 @@ async function run() {
             const result = await participantCollection.find(query).toArray();
             res.send(result);
         })
-        app.get('/paidCamp', verifyToken, async (req, res) => {
-            const email = req.query.email;
-            const query = { email: email };
+
+
+        app.get('/paidCamp/:id', verifyToken, async (req, res) => {
+            const id = req.params.id;
+            const query = { userId: id };
             const result = await paymentCollection.find(query).toArray();
             res.send(result);
         })
-
-
         //for payment
         app.get('/participants/:id', async (req, res) => {
             const id = req.params.id;
@@ -334,17 +379,6 @@ async function run() {
             res.send({ paymentResult, deleteResult });
         })
 
-
-
-        // Send a ping to confirm a successful connection
-        await client.db("admin").command({ ping: 1 });
-        console.log("Pinged your deployment. You successfully connected to MongoDB!");
-    } finally {
-        // Ensures that the client will close when you finish/error
-        //await client.close();
-    }
-}
-run().catch(console.dir);
 
 app.listen(port, () => {
     console.log(`Server is running on port: ${port}`);
