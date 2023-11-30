@@ -136,12 +136,23 @@ async function run() {
 
         //common api
         app.get('/camp', async (req, res) => {
+            //const today = new Date().toISOString();
+
             const cursor = campCollection.find({});
+            // const cursor = campCollection.find({ date: { $gte: today } });
             const camps = await cursor.toArray();
             res.send(camps);
-        })
+        });
 
 
+        app.get('/previousCamp', async (req, res) => {
+            const today = new Date().toISOString();
+
+
+            const cursor = campCollection.find({ date: { $gte: today } }).sort({ date: -1 });
+            const camps = await cursor.toArray();
+            res.send(camps);
+        });
 
         //admin api
         app.post('/camp', verifyToken, async (req, res) => {
@@ -217,7 +228,12 @@ async function run() {
             res.send(camp);
         })
 
+        app.post('/reviews', async (req, res) => {
+            const review = req.body;
+            const result = await reviewCollection.insertOne(review);
+            res.send(result);
 
+        })
         app.get('/popularCamp', async (req, res) => {
             const cursor = await campCollection.find({}).sort({ participants: -1 }).limit(6).toArray();
             res.send(cursor);
@@ -227,7 +243,7 @@ async function run() {
             const participant = req.body;
             const result = await participantCollection.insertOne(participant);
 
-            const query= {_id: new ObjectId(participant.campId)};
+            const query = { _id: new ObjectId(participant.campId) };
             const updatedDoc = {
                 $inc: {
                     participants: 1
@@ -235,7 +251,7 @@ async function run() {
             }
 
             const updateResult = await campCollection.updateOne(query, updatedDoc);
-           res.send({result, updateResult})
+            res.send({ result, updateResult })
         })
 
         app.get('/joinedCamp', async (req, res) => {
@@ -253,7 +269,7 @@ async function run() {
 
 
         //for payment
-        app.get('/participants/:id', async(req, res) => {
+        app.get('/participants/:id', async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) };
             const result = await participantCollection.findOne(query);
@@ -296,7 +312,7 @@ async function run() {
             const amount = parseInt(price * 100);
 
             console.log(amount, 'amount inside');
-            
+
             const paymentIntent = await stripe.paymentIntents.create({
                 amount: amount,
                 currency: "usd",
@@ -308,14 +324,14 @@ async function run() {
         });
 
 
-        app.post('/payment', async(req, res) => {
+        app.post('/payment', async (req, res) => {
             const payment = req.body;
             const paymentResult = await paymentCollection.insertOne(payment);
 
             const query = { _id: new ObjectId(payment.regId) };
             const deleteResult = await participantCollection.deleteOne(query);
 
-            res.send({paymentResult, deleteResult});
+            res.send({ paymentResult, deleteResult });
         })
 
 
