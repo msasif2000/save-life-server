@@ -7,7 +7,10 @@ const app = express();
 const port = process.env.PORT || 5000;
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
-
+// app.use(cors({
+//     origin: ['http://localhost:5173', 'https://save-life-medical-camp.web.app'],
+//     credentials: true
+// }));
 app.use(cors());
 app.use(express.json());
 
@@ -78,24 +81,9 @@ app.post('/jwt', async (req, res) => {
 
 
 
-//admin panel verification
-app.get('/user/admin/:email', verifyToken, async (req, res) => {
-    const email = req.params.email;
-    if (email !== req.decoded.email) {
-        return res.status(403).send('Unauthorized request');
-    }
-
-    const query = { email: email };
-    const user = await userCollection.findOne(query);
-    let admin = false;
-    if (user) {
-        admin = user?.role === 'admin';
-    }
-    res.send({ admin });
-})
 
 //user collection
-app.post('/users', async (req, res) => {
+app.post('/users',  async (req, res) => {
     const user = req.body;
     const query = { email: user.email };
     const existingUser = await userCollection.findOne(query);
@@ -132,6 +120,19 @@ app.get('/users/:email', verifyToken, async (req, res) => {
     res.send(result);
 })
 
+app.get('/usersLogin', async (req, res) => {
+    const { email, role } = req.query;
+
+    const query = {};
+    if (email) query.email = email;
+    if (role) query.role = role;
+
+    const result = await userCollection.findOne(query);
+
+    res.send(result);
+});
+
+
 app.patch('/users/:id', verifyToken, async (req, res) => {
     const id = req.params.id;
     const filter = { _id: new ObjectId(id) };
@@ -159,13 +160,19 @@ app.get('/camp', async (req, res) => {
     const camps = await cursor.toArray();
     res.send(camps);
 });
+app.get('/manageCamp', verifyToken, async (req, res) => {
+
+    const cursor = campCollection.find({});
+    const camps = await cursor.toArray();
+    res.send(camps);
+});
 
 
 app.get('/previousCamp', async (req, res) => {
     const today = new Date().toISOString();
 
 
-    const cursor = campCollection.find({ date: { $gte: today } }).sort({ date: -1 });
+    const cursor = campCollection.find({ date: { $lte: today } }).sort({ date: -1 });
     const camps = await cursor.toArray();
     res.send(camps);
 });
@@ -216,7 +223,7 @@ app.delete('/camp/:id', verifyToken, async (req, res) => {
 
 //make admin
 
-app.patch('/users/admin/:id', async (req, res) => {
+app.patch('/users/admin/:id', verifyToken, async (req, res) => {
     const id = req.params.id;
     const filter = { _id: new ObjectId(id) };
     const updatedDoc = {
@@ -229,7 +236,7 @@ app.patch('/users/admin/:id', async (req, res) => {
 })
 
 //make payment accepted
-app.patch('/payment/:id', async (req, res) => {
+app.patch('/payment/:id', verifyToken, async (req, res) => {
     const id = req.params.id;
     const filter = { _id: new ObjectId(id) };
     const updatedDoc = {
@@ -249,7 +256,7 @@ app.get('/joinCamp/:id', async (req, res) => {
     res.send(camp);
 })
 
-app.post('/reviews', async (req, res) => {
+app.post('/reviews', verifyToken, async (req, res) => {
     const review = req.body;
     const result = await reviewCollection.insertOne(review);
     res.send(result);
@@ -286,7 +293,7 @@ app.post('/participants', verifyToken, async (req, res) => {
     const updateResult = await campCollection.updateOne(query, updatedDoc);
     res.send({ result, updateResult })
 })
-app.patch('/participantsNumber/:id', async (req, res) => {
+app.patch('/participantsNumber/:id', verifyToken, async (req, res) => {
     const id = req.params.id;
     const query = { _id: new ObjectId(id) };
     const updatedDoc = {
@@ -299,7 +306,7 @@ app.patch('/participantsNumber/:id', async (req, res) => {
     res.send(updateResult)
 })
 
-app.get('/joinedCamp', async (req, res) => {
+app.get('/joinedCamp', verifyToken, async (req, res) => {
     const email = req.query.email;
     const query = { email: email };
     const result = await participantCollection.find(query).toArray();
@@ -307,14 +314,14 @@ app.get('/joinedCamp', async (req, res) => {
 })
 
 
-app.get('/paidCamp/:id', verifyToken, async (req, res) => {
-    const id = req.params.id;
-    const query = { userId: id };
+app.get('/paidCamp/:email',  async (req, res) => {
+    const email = req.params.email;
+    const query = { email: email };
     const result = await paymentCollection.find(query).toArray();
     res.send(result);
 })
 //for payment
-app.get('/participants/:id', async (req, res) => {
+app.get('/participants/:id', verifyToken, async (req, res) => {
     const id = req.params.id;
     const query = { _id: new ObjectId(id) };
     const result = await participantCollection.findOne(query);
@@ -322,21 +329,13 @@ app.get('/participants/:id', async (req, res) => {
 })
 
 //delete registered camp by user
-app.delete('/joinedCamp/:id', async (req, res) => {
+app.delete('/joinedCamp/:id', verifyToken, async (req, res) => {
     const id = req.params.id;
     const query = { _id: new ObjectId(id) };
     const result = await participantCollection.deleteOne(query);
     res.send(result);
 })
 
-
-
-app.get('/perCampPart/:id', async (req, res) => {
-    const id = req.params.id;
-    const query = { campId: id };
-    const result = await paymentCollection.find(query).toArray();
-    res.send(result);
-})
 
 //admin access api
 app.get('/bookings', verifyToken, async (req, res) => {
@@ -352,7 +351,7 @@ app.delete('/bookings/:id', verifyToken, async (req, res) => {
 
 
 //payment
-app.post('/create-payment-intent', async (req, res) => {
+app.post('/create-payment-intent', verifyToken, async (req, res) => {
     const { price } = req.body;
     const amount = parseInt(price * 100);
 
@@ -369,7 +368,7 @@ app.post('/create-payment-intent', async (req, res) => {
 });
 
 
-app.post('/payment', async (req, res) => {
+app.post('/payment', verifyToken, async (req, res) => {
     const payment = req.body;
     const paymentResult = await paymentCollection.insertOne(payment);
 
