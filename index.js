@@ -112,6 +112,20 @@ app.get('/doctors', async (req, res) => {
     res.send(result);
 
 })
+
+app.get('/doctors/:id', async (req, res) => {
+    const id = req.params.id;
+    const query = { _id: new ObjectId(id) };
+    const result = await doctorsCollection.findOne(query);
+    res.send(result);
+})
+
+app.get('/doctorsInfo/:email', async (req, res) => {
+    const email = req.params.email;
+    const query = { email: email };
+    const result = await doctorsCollection.findOne(query);
+    res.send(result);
+})
 //update profile api's
 app.get('/users/:email', verifyToken, async (req, res) => {
     const email = req.params.email;
