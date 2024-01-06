@@ -80,8 +80,6 @@ app.post('/jwt', async (req, res) => {
 
 
 
-
-
 //user collection
 app.post('/users',  async (req, res) => {
     const user = req.body;
@@ -277,7 +275,7 @@ app.post('/reviews', verifyToken, async (req, res) => {
 
 })
 app.get('/reviews', async (req, res) => {
-    const cursor = await reviewCollection.find({}).toArray();
+    const cursor = (await reviewCollection.find({}).sort({date: -1}).toArray());
     res.send(cursor);
 })
 
