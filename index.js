@@ -7,11 +7,11 @@ const app = express();
 const port = process.env.PORT || 5000;
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
-// app.use(cors({
-//     origin: ['http://localhost:5173', 'https://save-life-medical-camp.web.app'],
-//     credentials: true
-// }));
-app.use(cors());
+app.use(cors({
+    origin: ['http://localhost:5173', 'https://save-life-medical-camp.web.app'],
+    credentials: true
+}));
+// app.use(cors());
 app.use(express.json());
 
 //middlewares
@@ -31,7 +31,7 @@ const verifyToken = (req, res, next) => {
     //next();
 }
 
-const uri = `mongodb+srv://${process.env.DB_User}:${process.env.DB_Pass}@cluster0.alzohbu.mongodb.net/?retryWrites=true&w=majority`;
+const uri = `mongodb+srv://${process.env.DB_User}:${process.env.DB_Pass}@cluster0.alzohbu.mongodb.net/`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
