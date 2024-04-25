@@ -81,7 +81,7 @@ app.post('/jwt', async (req, res) => {
 
 
 //user collection
-app.post('/users',  async (req, res) => {
+app.post('/users', async (req, res) => {
     const user = req.body;
     const query = { email: user.email };
     const existingUser = await userCollection.findOne(query);
@@ -91,6 +91,22 @@ app.post('/users',  async (req, res) => {
     const result = await userCollection.insertOne(user);
     res.send(result);
 })
+
+app.get("/checkRole/:email", async (req, res) => {
+    const email = req.params.email;
+    try {
+        const user = await userCollection.findOne({ email: email });
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+        const userRole = user.role || false;
+        res.status(200).json({ role: userRole });
+    } catch (error) {
+        console.error("Error checking user role:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+});
 
 app.get('/users', verifyToken, async (req, res) => {
     //console.log(req.headers);
@@ -132,17 +148,17 @@ app.get('/users/:email', verifyToken, async (req, res) => {
     res.send(result);
 })
 
-app.get('/usersLogin', async (req, res) => {
-    const { email, role } = req.query;
+// app.get('/usersLogin', async (req, res) => {
+//     const { email, role } = req.query;
 
-    const query = {};
-    if (email) query.email = email;
-    if (role) query.role = role;
+//     const query = {};
+//     if (email) query.email = email;
+//     if (role) query.role = role;
 
-    const result = await userCollection.findOne(query);
+//     const result = await userCollection.findOne(query);
 
-    res.send(result);
-});
+//     res.send(result);
+// });
 
 
 app.patch('/users/:id', verifyToken, async (req, res) => {
@@ -275,7 +291,7 @@ app.post('/reviews', verifyToken, async (req, res) => {
 
 })
 app.get('/reviews', async (req, res) => {
-    const cursor = (await reviewCollection.find({}).sort({date: -1}).toArray());
+    const cursor = (await reviewCollection.find({}).sort({ date: -1 }).toArray());
     res.send(cursor);
 })
 
@@ -326,7 +342,7 @@ app.get('/joinedCamp', verifyToken, async (req, res) => {
 })
 
 
-app.get('/paidCamp/:email',  async (req, res) => {
+app.get('/paidCamp/:email', async (req, res) => {
     const email = req.params.email;
     const query = { email: email };
     const result = await paymentCollection.find(query).toArray();
