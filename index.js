@@ -108,6 +108,19 @@ app.get("/checkRole/:email", async (req, res) => {
     }
 });
 
+app.put('/roleSet/:email', async (req, res) => {
+    const email = req.params.email;
+    const role = req.body.role;
+    const query = { email: email };
+    const updatedDoc = {
+        $set: {
+            role: role
+        }
+    }
+    const result = await userCollection.updateOne(query, updatedDoc, {upsert: true});
+    res.send(result);
+})
+
 app.get('/users', verifyToken, async (req, res) => {
     //console.log(req.headers);
     const result = await userCollection.find({}).toArray();
